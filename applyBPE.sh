@@ -1,3 +1,0 @@
-subword-nmt learn-joint-bpe-and-vocab --input ./data/train.en ./data/train.de -o ./data/codes.txt --write-vocabulary ./data/vocab.en ./data/vocab.de
-subword-nmt apply-bpe -c ./data/codes.txt --vocabulary ./data/vocab.en --vocabulary-threshold 50 < ./data/train.en > ./data/train.BPE.en
-subword-nmt apply-bpe -c ./data/codes.txt --vocabulary ./data/vocab.de --vocabulary-threshold 50 < ./data/train.de > ./data/train.BPE.de
