@@ -27,7 +27,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Downloads and prepares the IWSLT2017 data set for processing')
     parser.add_argument('src', help='Source language')
     parser.add_argument('target', help='Target language')
-    parser.add_argument('--path', default='./data', help='Path to the original data')
+    parser.add_argument('--save_path', default='./data', help='Path where the original data and the temporal files are saved')
+    parser.add_argument('--output_path', default='./data', help='Path were the final files will be saved')
     parser.add_argument('--download', action='store_true')
     parser.add_argument('--filter', action='store_true')
     parser.add_argument('--BPE', action='store_true')
@@ -37,7 +38,8 @@ if __name__ == "__main__":
 
     src = args.src
     target = args.target
-    path = args.path
+    path = args.save_path
+    outPath = args.output_path
     original = f'{path}/original'
 
 
@@ -56,57 +58,64 @@ if __name__ == "__main__":
     if args.filter or args.all:
         print('Reading and tokenizing training set')
         loadAndTokenizeFile(src, f'{original}/{src}-{target}/train.tags.{src}-{target}.{src}',
-                                f'{path}/train.{src}',
+                                f'{path}/train.tok.{src}',
                                 r'^\s*([^<].*[^>])$')
         loadAndTokenizeFile(target, f'{original}/{src}-{target}/train.tags.{src}-{target}.{target}',
-                                    f'{path}/train.{target}',
+                                    f'{path}/train.tok.{target}',
                                     r'^\s([^<].*[^>])$')
 
         print('Reading and tokenizing dev set')
         loadAndTokenizeFile(src, f'{original}/{src}-{target}/IWSLT17.TED.dev2010.{src}-{target}.{src}.xml',
-                                f'{path}/dev.{src}',
+                                f'{path}/dev.tok.{src}',
                                 r'^<seg id="\d+">(.*)<\/seg>')
         loadAndTokenizeFile(target, f'{original}/{src}-{target}/IWSLT17.TED.dev2010.{src}-{target}.{target}.xml',
-                                f'{path}/dev.{target}',
+                                f'{path}/dev.tok.{target}',
                                 r'^<seg id="\d+">(.*)<\/seg>')
 
-        print('Reading and tokenizing test set')
-
-        loadAndTokenizeFile(src, f'{original}/{src}-{target}/IWSLT17.TED.tst2010.{src}-{target}.{src}.xml',
-                                f'{path}/test.{src}',
-                                r'^<seg id="\d+">(.*)<\/seg>')
-        loadAndTokenizeFile(target, f'{original}/{src}-{target}/IWSLT17.TED.tst2010.{src}-{target}.{target}.xml',
-                                f'{path}/test.{target}',
-                                r'^<seg id="\d+">(.*)<\/seg>')
-
-        for year in range(2011, 2016):
+        for year in range(2010, 2013):
             loadAndTokenizeFile(src, f'{original}/{src}-{target}/IWSLT17.TED.tst{year}.{src}-{target}.{src}.xml',
-                                    f'{path}/test.{src}',
+                                    f'{path}/dev.tok.{src}',
                                     r'^<seg id="\d+">(.*)<\/seg>', append=True)
             loadAndTokenizeFile(target, f'{original}/{src}-{target}/IWSLT17.TED.tst{year}.{src}-{target}.{target}.xml',
-                                    f'{path}/test.{target}',
+                                    f'{path}/dev.tok.{target}',
+                                    r'^<seg id="\d+">(.*)<\/seg>', append=True)
+
+        print('Reading and tokenizing test set')
+        loadAndTokenizeFile(src, f'{original}/{src}-{target}/IWSLT17.TED.tst2013.{src}-{target}.{src}.xml',
+                                f'{path}/test.tok.{src}',
+                                r'^<seg id="\d+">(.*)<\/seg>')
+        loadAndTokenizeFile(target, f'{original}/{src}-{target}/IWSLT17.TED.tst2013.{src}-{target}.{target}.xml',
+                                f'{path}/test.tok.{target}',
+                                r'^<seg id="\d+">(.*)<\/seg>')
+
+        for year in range(2014, 2016):
+            loadAndTokenizeFile(src, f'{original}/{src}-{target}/IWSLT17.TED.tst{year}.{src}-{target}.{src}.xml',
+                                    f'{path}/test.tok.{src}',
+                                    r'^<seg id="\d+">(.*)<\/seg>', append=True)
+            loadAndTokenizeFile(target, f'{original}/{src}-{target}/IWSLT17.TED.tst{year}.{src}-{target}.{target}.xml',
+                                    f'{path}/test.tok.{target}',
                                     r'^<seg id="\d+">(.*)<\/seg>', append=True)
 
 
     ## Apply bpe and learn vocab
     if args.BPE or args.all:
         print('Learning BPE and learning vocabulary')
-        subprocess.run(f'subword-nmt learn-joint-bpe-and-vocab --input {path}/train.{src} {path}/train.{target} -s {args.mergeOp} -o {path}/codes.txt --write-vocabulary {path}/vocab.{src} {path}/vocab.{target}'.split())
+        subprocess.run(f'subword-nmt learn-joint-bpe-and-vocab --input {path}/train.tok.{src} {path}/train.tok.{target} -s {args.mergeOp} -o {path}/codes.txt --write-vocabulary {path}/vocab.{src} {path}/vocab.{target}'.split())
 
         print('Applying BPE to sets')
         subprocess.Popen(f'subword-nmt apply-bpe -c {path}/codes.txt --vocabulary {path}/vocab.{src} --vocabulary-threshold 50'.split(),
-                        stdin=open(f'{path}/train.{src}', 'r'), stdout=open(f'{path}/train.BPE.{src}', 'w'))
+                        stdin=open(f'{path}/train.tok.{src}', 'r'), stdout=open(f'{outPath}/train.{src}', 'w'))
         subprocess.Popen(f'subword-nmt apply-bpe -c {path}/codes.txt --vocabulary {path}/vocab.{target} --vocabulary-threshold 50'.split(),
-                        stdin=open(f'{path}/train.{target}', 'r'), stdout=open(f'{path}/train.BPE.{target}', 'w'))
+                        stdin=open(f'{path}/train.tok.{target}', 'r'), stdout=open(f'{outPath}/train.{target}', 'w'))
 
         subprocess.Popen(f'subword-nmt apply-bpe -c {path}/codes.txt --vocabulary {path}/vocab.{src} --vocabulary-threshold 50'.split(),
-                        stdin=open(f'{path}/dev.{src}', 'r'), stdout=open(f'{path}/dev.BPE.{src}', 'w'))
+                        stdin=open(f'{path}/dev.tok.{src}', 'r'), stdout=open(f'{outPath}/dev.{src}', 'w'))
         subprocess.Popen(f'subword-nmt apply-bpe -c {path}/codes.txt --vocabulary {path}/vocab.{target} --vocabulary-threshold 50'.split(),
-                        stdin=open(f'{path}/dev.{target}', 'r'), stdout=open(f'{path}/dev.BPE.{target}', 'w'))
+                        stdin=open(f'{path}/dev.tok.{target}', 'r'), stdout=open(f'{outPath}/dev.{target}', 'w'))
 
         subprocess.Popen(f'subword-nmt apply-bpe -c {path}/codes.txt --vocabulary {path}/vocab.{src} --vocabulary-threshold 50'.split(),
-                        stdin=open(f'{path}/test.{src}', 'r'), stdout=open(f'{path}/test.BPE.{src}', 'w'))
+                        stdin=open(f'{path}/test.tok.{src}', 'r'), stdout=open(f'{outPath}/test.{src}', 'w'))
         subprocess.Popen(f'subword-nmt apply-bpe -c {path}/codes.txt --vocabulary {path}/vocab.{target} --vocabulary-threshold 50'.split(),
-                        stdin=open(f'{path}/test.{target}', 'r'), stdout=open(f'{path}/test.BPE.{target}', 'w'))
+                        stdin=open(f'{path}/test.tok.{target}', 'r'), stdout=open(f'{outPath}/test.{target}', 'w'))
 
     print('Finished')
